@@ -1,6 +1,8 @@
 # Location of ocaml-dSFMT package
 DPATH = ../ocaml-dSFMT
+
 OD  = obj
+OTP = -inline 10
 
 all: ray.exe
 
@@ -16,8 +18,8 @@ $(OD)/dsfmt.cmx:  $(DPATH)/dsfmt.cmx
 
 ray.exe: $(OD)/libdsfmt.a $(OD)/dsfmt.cmi $(OD)/dsfmt.o $(OD)/dsfmt.cmx ray.ml
 	cp ray.ml $(OD) ; cd $(OD) ; \
-	ocamlopt -o $@ -verbose -inline 10 libdsfmt.a dsfmt.cmx ray.ml ; \
-	mv $@ ..
+ocamlopt -o $@ $(OPT) libdsfmt.a dsfmt.cmx ray.ml ; \
+mv $@ ..
 
 # other possible optimization options:
 # ocamlopt -linkall -nodynlink -unsafe -noassert
