@@ -4,7 +4,7 @@ DPATH = ../ocaml-dSFMT
 OD  = obj
 OTP = -inline 10
 
-all: ray.exe
+all: exe
 
 # fetch files needed for ocaml-dSFMT random number package
 $(OD)/libdsfmt.a: $(DPATH)/libdsfmt.a
@@ -16,7 +16,7 @@ $(OD)/dsfmt.o:    $(DPATH)/dsfmt.o
 $(OD)/dsfmt.cmx:  $(DPATH)/dsfmt.cmx
 	cp $(DPATH)/dsfmt.cmx $(OD)
 
-ray.exe: $(OD)/libdsfmt.a $(OD)/dsfmt.cmi $(OD)/dsfmt.o $(OD)/dsfmt.cmx ray.ml
+exe: $(OD)/libdsfmt.a $(OD)/dsfmt.cmi $(OD)/dsfmt.o $(OD)/dsfmt.cmx ray.ml
 	cp ray.ml $(OD) ; cd $(OD) ; \
 ocamlopt -o $@ $(OPT) libdsfmt.a dsfmt.cmx ray.ml ; \
 mv $@ ..
@@ -25,4 +25,4 @@ mv $@ ..
 # ocamlopt -linkall -nodynlink -unsafe -noassert
 
 clean:
-	rm ray.exe $(OD)/ray.cmi $(OD)/ray.o $(OD)/ray.cmx
+	rm exe $(OD)/ray.cmi $(OD)/ray.o $(OD)/ray.cmx

@@ -9,7 +9,7 @@ open Printf;;
 
 let pi = acos (-1.0)
 let () = Dsfmt.init_int 15
-let rnd () = Dsfmt.genrand ()
+let rnd = Dsfmt.genrand
 (*
 let leafrad = 0.050 (* leaf diameter 100 mm *)
 *)
@@ -17,10 +17,10 @@ let leafrad = 1. (* leaf diameter 100 mm *)
 
 type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
 type leaf_t = {lr:vec_t; ld:vec_t}
-    (* lr: location, ld: direction of surface normal *)
+              (* lr: location, ld: direction of surface normal *)
 type ray_t  = {rr:vec_t; rd:vec_t} (* rr: location, rd: direction *)
 
-let ( *| ) k a = {x = k *. a.x; y = k *. a.y; z = k *. a.z}
+let ( *| ) k a = {x =   k *. a.x; y =   k *. a.y; z =   k *. a.z}
 let ( +| ) a b = {x = a.x +. b.x; y = a.y +. b.y; z = a.z +. b.z}
 let ( -| ) a b = {x = a.x -. b.x; y = a.y -. b.y; z = a.z -. b.z}
 let dot a b = a.x *. b.x +. a.y *. b.y +. a.z *. b.z
@@ -42,13 +42,13 @@ let r_ray () =
   and d = {x = -1.; y = 0.; z = 0.} in  
   {rr = r; rd = d}
 
-type hit_t = Miss | Hit of vec_t
-
 let close_p a b r =
   let x = a.x -. b.x
   and y = a.y -. b.y
   and z = a.z -. b.z in
   x*.x +. y*.y +. z*.z < r*.r
+
+type hit_t = Miss | Hit of vec_t
 
 let hit_p ray leaf =
   let denom = dot ray.rd leaf.ld in 
@@ -62,7 +62,7 @@ let hit_p ray leaf =
 	  then Hit(hitpoint)
 	  else Miss
 
-let nn = 10000000;;
+let nn = 100000;;
 
 let cnt = ref 1 in
   for i = 1 to nn do
