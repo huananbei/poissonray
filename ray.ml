@@ -6,18 +6,19 @@ let lambert_up () = let
 *)
 
 open Printf;;
+let () = Dsfmt.init_int 15
+let rnd = Dsfmt.genrand
 
 let lai        = 3.
 let leafrad    = 0.100 (* 0.05 leaf radius 50 mm, diameter 100 mm *)
 let dimx, dimz = 3., 3.
 
 let dimy = dimx
-let volume = dimx*.dimy*.dimz
+let volume = dimx *. dimy *. dimz
+let ground_area = dimx *. dimy
 let pi = acos (-1.0)
 let leaf_area = pi *. leafrad *. leafrad
-
-let () = Dsfmt.init_int 15
-let rnd = Dsfmt.genrand
+let expected_n_leaves = ground_area *. lai /. leaf_area
 
 (* http://www.johndcook.com/blog/2010/08/16/how-to-compute-log-factorial/ *)
 (* Not good for x < 256 *)
@@ -30,17 +31,13 @@ let poisson lambda =
   and beta = pi /. sqrt(3. *. lambda) in
   let alpha = beta *. lambda
   and k = log(c) -. lambda -. log(beta) in
-  let u = ref 0.
-  and x = ref 0.
-  and n = ref 0
-  and v = ref 0.
-  and y = ref 0.
-  and lhs = ref 1.
-  and rhs = ref 0. in
+  let u = ref 0. and x = ref 0. and n = ref 0 and v = ref 0. and y = ref 0.
+  and lhs = ref 1. and rhs = ref 0. in
     while lhs > rhs do
       n := -1;
       while !n < 0 do
 	u := rnd();
+	while !u = 0. do u := rnd() done;
 	x := (alpha -. log((1. -. !u) /. !u)) /. beta;
 	n := int_of_float (floor (!x +. 0.5))
       done;
@@ -48,11 +45,10 @@ let poisson lambda =
       y := alpha -. beta *. !x;
       lhs := !y +. log(!v /. (1. +. exp(!y))**2.);
       rhs := k +. (float !n) *. log(lambda) -. logfact(float !n);
-      printf "%d   %f   %f\n" (!n+1) !lhs !rhs
     done;
     !n
-      
-(* TODO: above needs lgamma from C90 math libary *)
+
+let n_leaves = poisson expected_n_leaves
 
 type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
 type leaf_t = {lr:vec_t; ld:vec_t}
