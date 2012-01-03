@@ -19,6 +19,11 @@ let leaf_area = pi *. leafrad *. leafrad
 let () = Dsfmt.init_int 15
 let rnd = Dsfmt.genrand
 
+(* http://www.johndcook.com/blog/2010/08/16/how-to-compute-log-factorial/ *)
+(* Not good for x < 256 *)
+let logfact x =
+  (x -. 0.5) *. log(x) -. x +. 0.5 *. log(2. *. pi) +. 1. /. (12. *. x)
+
 (* http://www.johndcook.com/blog/2010/06/14/generating-poisson-random-values/ *)
 let poisson lambda =
   let c = 0.767 -. 3.36 /. lambda
@@ -32,21 +37,21 @@ let poisson lambda =
   and y = ref 0.
   and lhs = ref 1.
   and rhs = ref 0. in
-  while lhs > rhs do
-    n := -1;
-    while !n < 0 do
-      u := rnd();
-      x := (alpha -. log((1. -. !u) /. !u)) /. beta;
-      n := int_of_float (floor (!x +. 0.5))
+    while lhs > rhs do
+      n := -1;
+      while !n < 0 do
+	u := rnd();
+	x := (alpha -. log((1. -. !u) /. !u)) /. beta;
+	n := int_of_float (floor (!x +. 0.5))
+      done;
+      v := rnd();
+      y := alpha -. beta *. !x;
+      lhs := !y +. log(!v /. (1. +. exp(!y))**2.);
+      rhs := k +. (float !n) *. log(lambda) -. logfact(float !n);
+      printf "%d   %f   %f\n" (!n+1) !lhs !rhs
     done;
-    v := rnd();
-    y := alpha -. beta *. !x;
-    lhs := !y +. log(!v /. (1. +. exp(!y))**2.);
-    rhs := k +. (float !n) *. log(lambda) -. lgamma(float(!n + 1));
-    printf "%d   %f   %f\n" (!n+1) !lhs !rhs
-  done;
-  !n
-
+    !n
+      
 (* TODO: above needs lgamma from C90 math libary *)
 
 type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
@@ -62,18 +67,18 @@ let dot a b = a.x *. b.x +. a.y *. b.y +. a.z *. b.z
 let sph_up () = (* spherically distributed vec with z >= 0 *)
   let theta = acos(rnd())
   and phi = 2. *. pi *. (rnd()) in
-  {x = sin theta *. cos phi; y = sin theta *. sin phi; z = cos theta}
+    {x = sin theta *. cos phi; y = sin theta *. sin phi; z = cos theta}
 
 let r_leaf () =
   let r = {x = 0.; y = 0.; z = 0.}
   and d = sph_up() in  
-  {lr = r; ld = d}
+    {lr = r; ld = d}
 
 let close_p a b r =
   let x = a.x -. b.x
   and y = a.y -. b.y
   and z = a.z -. b.z in
-  x*.x +. y*.y +. z*.z < r*.r
+    x*.x +. y*.y +. z*.z < r*.r
 
 type hit_t = Miss | Hit of vec_t
 
@@ -96,7 +101,8 @@ let test1 nn =
     and zz = 2. *. rnd() *. leafrad -. leafrad  in
     let r = {x =  2.; y = yy; z = zz}
     and d = {x = -1.; y = 0.; z = 0.} in  
-    {rr = r; rd = d} in
+      {rr = r; rd = d}
+  in
   let cnt = ref 1 in
     for i = 1 to nn do
       cnt := !cnt +
