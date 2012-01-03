@@ -7,13 +7,47 @@ let lambert_up () = let
 
 open Printf;;
 
+let lai        = 3.
+let leafrad    = 0.100 (* 0.05 leaf radius 50 mm, diameter 100 mm *)
+let dimx, dimz = 3., 3.
+
+let dimy = dimx
+let volume = dimx*.dimy*.dimz
 let pi = acos (-1.0)
+let leaf_area = pi *. leafrad *. leafrad
+
 let () = Dsfmt.init_int 15
 let rnd = Dsfmt.genrand
-(*
-let leafrad = 0.050 (* leaf diameter 100 mm *)
-*)
-let leafrad = 1. (* leaf diameter 100 mm *)
+
+(* http://www.johndcook.com/blog/2010/06/14/generating-poisson-random-values/ *)
+let poisson lambda =
+  let c = 0.767 -. 3.36 /. lambda
+  and beta = pi /. sqrt(3. *. lambda) in
+  let alpha = beta *. lambda
+  and k = log(c) -. lambda -. log(beta) in
+  let u = ref 0.
+  and x = ref 0.
+  and n = ref 0
+  and v = ref 0.
+  and y = ref 0.
+  and lhs = ref 1.
+  and rhs = ref 0. in
+  while lhs > rhs do
+    n := -1;
+    while !n < 0 do
+      u := rnd();
+      x := (alpha -. log((1. -. !u) /. !u)) /. beta;
+      n := int_of_float (floor (!x +. 0.5))
+    done;
+    v := rnd();
+    y := alpha -. beta *. !x;
+    lhs := !y +. log(!v /. (1. +. exp(!y))**2.);
+    rhs := k +. (float !n) *. log(lambda) -. lgamma(float(!n + 1));
+    printf "%d   %f   %f\n" (!n+1) !lhs !rhs
+  done;
+  !n
+
+(* TODO: above needs lgamma from C90 math libary *)
 
 type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
 type leaf_t = {lr:vec_t; ld:vec_t}
@@ -29,18 +63,11 @@ let sph_up () = (* spherically distributed vec with z >= 0 *)
   let theta = acos(rnd())
   and phi = 2. *. pi *. (rnd()) in
   {x = sin theta *. cos phi; y = sin theta *. sin phi; z = cos theta}
-      
+
 let r_leaf () =
   let r = {x = 0.; y = 0.; z = 0.}
   and d = sph_up() in  
   {lr = r; ld = d}
-
-let r_ray () =
-  let yy = 2. *. rnd() -. 1.
-  and zz = 2. *. rnd() -. 1. in
-  let r = {x =  2.; y = yy; z = zz}
-  and d = {x = -1.; y = 0.; z = 0.} in  
-  {rr = r; rd = d}
 
 let close_p a b r =
   let x = a.x -. b.x
@@ -58,19 +85,25 @@ let hit_p ray leaf =
       let dist = numer /. denom in
 	if dist <= 0. then Miss
 	else let hitpoint = ray.rr +| (dist *| ray.rd) in 
-	  if close_p leaf.lr hitpoint leafrad
+	  if close_p hitpoint leaf.lr leafrad
 	  then Hit(hitpoint)
 	  else Miss
 
-let nn = 100000;;
-
-let cnt = ref 1 in
-  for i = 1 to nn do
-    cnt := !cnt +
-    if (hit_p (r_ray()) (r_leaf()) <> Miss)
-    then 1
-    else 0
-  done;
-  printf "%15.10f\n" (float !cnt /. float nn);
-  printf "%15.10f\n" (pi /. 8.)
+let test1 nn =
+  (* shoot rays from a square to one randomly oriented leaf in origo *)
+  let r_ray () =
+    let yy = 2. *. rnd() *. leafrad -. leafrad
+    and zz = 2. *. rnd() *. leafrad -. leafrad  in
+    let r = {x =  2.; y = yy; z = zz}
+    and d = {x = -1.; y = 0.; z = 0.} in  
+    {rr = r; rd = d} in
+  let cnt = ref 1 in
+    for i = 1 to nn do
+      cnt := !cnt +
+	if (hit_p (r_ray()) (r_leaf()) <> Miss)
+	then 1
+	else 0
+    done;
+    printf "res:  %15.10f\n" (float !cnt /. float nn);
+    printf "pi/8: %15.10f\n" (pi /. 8.)
 ;;
