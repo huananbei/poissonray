@@ -1,0 +1,154 @@
+Ocaml bindings to generate random double precision floating point 
+numbers using the dSFMT C-library from:
+http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/SFMT/#dSFMT
+
+Just run
+
+  $ make
+
+This will produce quite a few files (11 to be precise):
+
+  dSFMT_c.o     object file from the dSFMT C code
+  dsfmt-wrap.o  object file from the C wrapper functions
+  dlldsfmt.so   shared library object made of the two above
+  libdsfmt.a    static library object made of the two above
+  dsfmt.cmi     compiled interface definition for dsfmt.ml
+  dsfmt.cmo     bytecode object from dsfmt.ml
+  dsfmt.cma     bytecode library object from dsfmt.ml
+  dsfmt.o       native code object from dsfmt.ml
+  dsfmt.cmx     metadata for dsfmt.o
+  dsfmt.a       native code library object from dsfmt.ml
+  dsfmt.cmxa    metadata for dsfmt.a
+
+The above files can be used in various ways:
+
+Most importantly, Dsfmt.init_int <int-seed> will call the C-function 
+dsfmt_gv_init_gen_rand(uint32_t) to initialize the random number 
+generator, and Dsfmt.genrand will call the C-function 
+dsfmt_gv_genrand_close_open() fo return a random float from the interval [0,1).
+
+
+(1) Toplevel and scrips
+Files needed: dsfmt.cmi dsfmt.cma dlldsfmt.so
+
+Generate random numbers in the ocaml toplevel as:
+(here 123 is an int to seed the random number generator)
+
+  $ ocaml dsfmt.cma 
+  # Dsfmt.init_int 123;;
+  # Dsfmt.genrand ();;
+
+Or from a script:
+
+  $ cat test.ml 
+  #load "dsfmt.cma";;
+  Dsfmt.init_int 123;;
+  Printf.printf "%f\n" (Dsfmt.genrand ());;
+  $ ocaml test.ml
+
+(2) Bytecode compilation
+
+(2a) dynamically linking with objects
+Files needed: dsfmt.cmi dsfmt.cmo dlldsfmt.so
+
+  $ ocamlc dlldsfmt.so dsfmt.cmo <mycode>.ml 
+
+(2b) dynamically linking with library objects
+Files needed: dsfmt.cmi dsfmt.cma dlldsfmt.so
+
+  $ ocamlc dsfmt.cma <mycode>.ml 
+
+(2a-b) Run the bytecode with:
+
+  $ ocamlrun -I . a.out 
+
+The "-I ." is needed so that ocamlrun searches dlldsfmt.so from the 
+current directory. (Or, add . to environment variable 
+CAML_LD_LIBRARY_PATH and then run with just ./a.out.)
+
+(2c) statically linking with objects
+Files needed: dsfmt.cmi dsfmt.cmo libdsfmt.a
+
+  $ ocamlc -custom libdsfmt.a dsfmt.cmo <mycode>.ml
+
+(2d) statically linking with library objects
+Files needed: dsfmt.cmi dsfmt.cma libdsfmt.a
+
+  $ ocamlc -custom -I . dsfmt.cma <mycode>.ml
+
+(3) Native compilation
+
+(3a) statically linking with objects
+Files needed: dsfmt.cmi dsfmt.o dsfmt.cmx libdsfmt.a 
+
+Compile with
+
+  $ ocamlopt libdsfmt.a dsfmt.cmx <mycode>.ml
+
+(3b) or linking directly with C objects
+Files needed: dsfmt.cmi dsfmt.o dsfmt.cmx dSFMT_c.o dsfmt-wrap.o 
+
+Compile with
+
+  $ ocamlopt dsfmt-wrap.o dSFMT_c.o dsfmt.cmx <mycode>.ml
+
+(3c) statically linkind with library objects
+Files needed: dsfmt.cmi dsfmt.cmx dsfmt.a dsfmt.cmxa libdsfmt.a 
+
+Compile with:
+
+  $ ocamlopt -I . dsfmt.cmxa <mycode>.ml
+
+(The file dsfmt.cmx is not strictly needed, but only if it is present 
+can ocamlopt do inlining of the functions -- and maybe some other 
+optimizations, I don't know -- defined in dsfmt.ml when compiling your 
+code [1].)
+
+[1] http://caml.inria.fr/mantis/bug_view_advanced_page.php?bug_id=4772
+
+Some useful links for ocaml-C interoperation:
+http://www.linux-nantes.org/~fmonnier/OCaml/ocaml-wrapping-c.php
+http://rwmj.wordpress.com/2009/08/04/ocaml-internals/
+
+
+For those interested in speed
+
+If you
+
+  $ cd speed-vs-c
+  $ make
+
+you can compare the speed of various ways (C and ocaml) to call dSFMT.
+
+$ time ./test_c1
+real	0m0.582s
+user	0m0.568s
+sys	0m0.012s
+
+$ time ./test_c2
+real	0m1.111s
+user	0m1.096s
+sys	0m0.004s
+
+$ time ./test_ocaml
+real	0m2.137s
+user	0m2.100s
+sys	0m0.016s
+
+$ time ./test_ocaml_random 
+real	0m15.301s
+user	0m15.221s
+sys	0m0.060s
+
+All these call a function 100 000 000 times to generate a random double.
+
+The first one (test_c1.c) is a straighforward way to call dSFMT from C, 
+and as the functions in dSFMT code are declared inline, everything will 
+be inlined and the code is fast. In the second (test_c2.c) one, there is 
+an __attribute__ ((noinline)) to prevent inlining, making the comparison 
+to ocaml a bit more "fair". C is still 2x faster than ocaml.
+
+The last one uses the ocaml standard libary random number generator 
+Random.float, instead is dSFMT.
+
+2012-07-22 Sampo Smolander, sampo.smolander@helsinki.fi

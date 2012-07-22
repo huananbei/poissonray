@@ -1,23 +1,29 @@
 # Location of ocaml-dSFMT package
-DPATH = ../ocaml-dSFMT
 
-OD  = obj
-OTP = -inline 10
+dSFMT-PATH = ocaml-dSFMT
+OBJDIR  = obj
+OPT = -inline 10
 
 all: exe
 
-# fetch files needed for ocaml-dSFMT random number package
-$(OD)/libdsfmt.a: $(DPATH)/libdsfmt.a
-	cp $(DPATH)/libdsfmt.a $(OD)
-$(OD)/dsfmt.cmi:  $(DPATH)/dsfmt.cmi
-	cp $(DPATH)/dsfmt.cmi $(OD)
-$(OD)/dsfmt.o:    $(DPATH)/dsfmt.o
-	cp $(DPATH)/dsfmt.o $(OD)
-$(OD)/dsfmt.cmx:  $(DPATH)/dsfmt.cmx
-	cp $(DPATH)/dsfmt.cmx $(OD)
+#$(dSFMT-PATH):
+#	git clone git://github.com/samposm/ocaml-dSFMT.git ocaml-dSFMT
 
-exe: $(OD)/libdsfmt.a $(OD)/dsfmt.cmi $(OD)/dsfmt.o $(OD)/dsfmt.cmx ray.ml
-	cp ray.ml $(OD) ; cd $(OD) ; \
+$(dSFMT-PATH)/libdsfmt.a $(dSFMT-PATH)/dsfmt.cmi $(dSFMT-PATH)/dsfmt.o $(dSFMT-PATH)/dsfmt.cmx: $(dSFMT-PATH)
+	cd $(dSFMT-PATH) && make
+
+# fetch files needed for ocaml-dSFMT random number package
+$(OBJDIR)/libdsfmt.a: $(dSFMT-PATH)/libdsfmt.a
+	cp $(dSFMT-PATH)/libdsfmt.a $(OBJDIR)
+$(OBJDIR)/dsfmt.cmi:  $(dSFMT-PATH)/dsfmt.cmi
+	cp $(dSFMT-PATH)/dsfmt.cmi $(OBJDIR)
+$(OBJDIR)/dsfmt.o:    $(dSFMT-PATH)/dsfmt.o
+	cp $(dSFMT-PATH)/dsfmt.o $(OBJDIR)
+$(OBJDIR)/dsfmt.cmx:  $(dSFMT-PATH)/dsfmt.cmx
+	cp $(dSFMT-PATH)/dsfmt.cmx $(OBJDIR)
+
+exe: $(OBJDIR)/libdsfmt.a $(OBJDIR)/dsfmt.cmi $(OBJDIR)/dsfmt.o $(OBJDIR)/dsfmt.cmx ray.ml
+	cp ray.ml $(OBJDIR) ; cd $(OBJDIR) ; \
 ocamlopt -o $@ $(OPT) libdsfmt.a dsfmt.cmx ray.ml ; \
 mv $@ ..
 
@@ -25,4 +31,4 @@ mv $@ ..
 # ocamlopt -linkall -nodynlink -unsafe -noassert
 
 clean:
-	rm exe $(OD)/ray.cmi $(OD)/ray.o $(OD)/ray.cmx
+	rm exe $(OBJDIR)/ray.cmi $(OBJDIR)/ray.o $(OBJDIR)/ray.cmx
