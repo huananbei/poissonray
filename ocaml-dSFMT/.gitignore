@@ -1,6 +1,8 @@
-*.a
-*.ml
-*.cmi
 *.o
+*.a
+*.so
+*.cmi
+*.cmo
+*.cma
 *.cmx
 *.cmxa

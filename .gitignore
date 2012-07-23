@@ -1,10 +1,1 @@
 exe
-*~
-*.a
-*.o
-*.so
-*.cma
-*.cmi
-*.cmo
-*.cmx
-*.cmxa
