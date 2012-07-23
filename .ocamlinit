@@ -3,8 +3,11 @@ Sys.interactive := false;;
 #use "topfind";;
 Sys.interactive := interactive;;
 
+(* Batteries *)
+(*
 Toploop.use_silently
   Format.err_formatter (Filename.concat (Findlib.package_directory "batteries") "battop.ml");;
+*)
 
 #require "bigarray";;
 #require "gsl";;

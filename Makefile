@@ -33,5 +33,8 @@ exe: $(OBJDIR)/libdsfmt.a $(OBJDIR)/dsfmt.cmi $(OBJDIR)/dsfmt.a $(OBJDIR)/dsfmt.
 ocamlopt -o $@ $(OPT) dsfmt.cmxa ray.ml ; \
 mv $@ ..
 
+# ocamlfind ocamlc -package batteries -linkpkg ...
+# https://github.com/ocaml-batteries-team/batteries-included/wiki/Getting-started
+
 clean:
 	rm exe $(OBJDIR)/ray.cmi $(OBJDIR)/ray.o $(OBJDIR)/ray.cmx
