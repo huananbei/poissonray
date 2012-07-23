@@ -2,7 +2,11 @@
 
 dSFMT-PATH = ocaml-dSFMT
 OBJDIR  = obj
-OPT = -inline 10 -I +gsl bigarray.cmxa gsl.cmxa -I .
+OPT = -linkall -nodynlink -inline 100 -I +gsl bigarray.cmxa gsl.cmxa -I .
+
+# other possible optimization options:
+# ocamlopt -linkall -nodynlink -unsafe -noassert
+
 
 all: exe
 
@@ -28,9 +32,6 @@ exe: $(OBJDIR)/libdsfmt.a $(OBJDIR)/dsfmt.cmi $(OBJDIR)/dsfmt.a $(OBJDIR)/dsfmt.
 	cp ray.ml $(OBJDIR) ; cd $(OBJDIR) ; \
 ocamlopt -o $@ $(OPT) dsfmt.cmxa ray.ml ; \
 mv $@ ..
-
-# other possible optimization options:
-# ocamlopt -linkall -nodynlink -unsafe -noassert
 
 clean:
 	rm exe $(OBJDIR)/ray.cmi $(OBJDIR)/ray.o $(OBJDIR)/ray.cmx

@@ -7,15 +7,14 @@ let lambert_up () = let
 
 open Printf;;
 
-let dsfmt_seed = 7
-let gsl_seed   = 7n (* n for nativeint *)
+let seed = 7
 
-let () = Dsfmt.init_int dsfmt_seed
+let () = Dsfmt.init_int seed
 let rnd = Dsfmt.genrand
-
-let gslrng = Gsl_rng.make Gsl_rng.MT19937 ;;
-Gsl_rng.set gslrng gsl_seed
-let poisson = Gsl_randist.poisson gslrng
+let gsl_seed = Nativeint.of_int seed
+let gslrng = Gsl_rng.make Gsl_rng.MT19937
+let () = Gsl_rng.set gslrng gsl_seed
+let poisson lambda = Gsl_randist.poisson gslrng lambda
 
 let lai        = 3.
 let leafrad    = 0.100 (* 0.05 leaf radius 50 mm, diameter 100 mm *)
@@ -35,26 +34,33 @@ type leaf_t = {lr:vec_t; ld:vec_t}
               (* lr: location, ld: direction of surface normal *)
 type ray_t  = {rr:vec_t; rd:vec_t} (* rr: location, rd: direction *)
 
-let ( *| ) k a = {x =   k *. a.x; y =   k *. a.y; z =   k *. a.z}
-let ( +| ) a b = {x = a.x +. b.x; y = a.y +. b.y; z = a.z +. b.z}
-let ( -| ) a b = {x = a.x -. b.x; y = a.y -. b.y; z = a.z -. b.z}
-let dot a b = a.x *. b.x +. a.y *. b.y +. a.z *. b.z
+let ( + ) = Pervasives.( +. )
+let ( - ) = Pervasives.( -. )
+let ( * ) = Pervasives.( *. )
+let ( / ) = Pervasives.( /. )
+
+let ( +. ) = Pervasives.( + )
+
+let ( *| ) k a = {x =   k * a.x; y =   k * a.y; z =   k * a.z}
+let ( +| ) a b = {x = a.x + b.x; y = a.y + b.y; z = a.z + b.z}
+let ( -| ) a b = {x = a.x - b.x; y = a.y - b.y; z = a.z - b.z}
+let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
 let sph_up () = (* spherically distributed vec with z >= 0 *)
-  let theta = acos(rnd())
-  and phi = 2. *. pi *. (rnd()) in
-    {x = sin theta *. cos phi; y = sin theta *. sin phi; z = cos theta}
+  let theta = acos(rnd()) and 
+      phi = 2. * pi * (rnd()) in 
+  {x = sin theta * cos phi; y = sin theta * sin phi; z = cos theta}
 
 let r_leaf () =
-  let r = {x = 0.; y = 0.; z = 0.}
-  and d = sph_up() in  
-    {lr = r; ld = d}
+  let r = {x = 0.; y = 0.; z = 0.} and 
+      d = sph_up() in  
+  {lr = r; ld = d}
 
 let close_p a b r =
-  let x = a.x -. b.x
-  and y = a.y -. b.y
-  and z = a.z -. b.z in
-    x*.x +. y*.y +. z*.z < r*.r
+  let dx = a.x - b.x and
+      dy = a.y - b.y and
+      dz = a.z - b.z in
+  dx*dx + dy*dy + dz*dz < r*r
 
 type hit_t = Miss | Hit of vec_t
 
@@ -63,7 +69,7 @@ let hit_p ray leaf =
     if denom = 0. then Miss
     else
       let numer = dot (leaf.lr -| ray.rr) leaf.ld in
-      let dist = numer /. denom in
+      let dist = numer / denom in
 	if dist <= 0. then Miss
 	else let hitpoint = ray.rr +| (dist *| ray.rd) in 
 	  if close_p hitpoint leaf.lr leafrad
@@ -73,19 +79,20 @@ let hit_p ray leaf =
 let test1 nn =
   (* shoot rays from a square to one randomly oriented leaf in origo *)
   let r_ray () =
-    let yy = 2. *. rnd() *. leafrad -. leafrad
-    and zz = 2. *. rnd() *. leafrad -. leafrad  in
-    let r = {x =  2.; y = yy; z = zz}
-    and d = {x = -1.; y = 0.; z = 0.} in  
-      {rr = r; rd = d}
-  in
+    let yy = (2. * rnd() - 1.) * leafrad and 
+	zz = (2. * rnd() - 1.) * leafrad in
+    let r = {x =  2.; y = yy; z = zz} and
+	d = {x = -1.; y = 0.; z = 0.} in  
+    {rr = r; rd = d} in
   let cnt = ref 1 in
     for i = 1 to nn do
-      cnt := !cnt +
+      cnt := !cnt +.
 	if (hit_p (r_ray()) (r_leaf()) <> Miss)
 	then 1
 	else 0
     done;
     printf "res:  %15.10f\n" (float !cnt /. float nn);
     printf "pi/8: %15.10f\n" (pi /. 8.)
+
+let () = test1 1000000
 ;;
