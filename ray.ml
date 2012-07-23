@@ -23,16 +23,15 @@ let dimx, dimy, dimz = 3., 3., 1.
 let volume = dimx *. dimy *. dimz
 let ground_area = dimx *. dimy
 let pi = acos (-1.0)
-let leaf_area = pi *. leafrad *. leafrad
-let expected_n_leaves = ground_area *. lai /. leaf_area
+let area_of_leaf = pi *. leafrad *. leafrad
+let expected_n_leaves = ground_area *. lai /. area_of_leaf
 
 let n_leaves = poisson expected_n_leaves
 let () =  printf "n_leaves: %n\n" n_leaves
 
 type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
-type leaf_t = {lr:vec_t; ld:vec_t}
-              (* lr: location, ld: direction of surface normal *)
-type ray_t  = {rr:vec_t; rd:vec_t} (* rr: location, rd: direction *)
+type leaf_t = {lr:vec_t; ld:vec_t}        (* lr: location, ld: direction *)
+type ray_t  = {rr:vec_t; rd:vec_t}        (* rr: location, rd: direction *)
 
 let vec0 = {x = 0.; y = 0.; z = 0.}
 let leaf0 = {lr = vec0; ld = vec0}
@@ -42,10 +41,10 @@ let ( - ) = Pervasives.( -. )
 let ( * ) = Pervasives.( *. )
 let ( / ) = Pervasives.( /. )
 let ( ~- ) = Pervasives.( ~-. ) (* Unary negation *)
-
 let ( +. ) = Pervasives.( + )
 let ( -. ) = Pervasives.( - )
 
+(* vector operations *)
 let ( *| ) k a = {x =   k * a.x; y =   k * a.y; z =   k * a.z}
 let ( +| ) a b = {x = a.x + b.x; y = a.y + b.y; z = a.z + b.z}
 let ( -| ) a b = {x = a.x - b.x; y = a.y - b.y; z = a.z - b.z}
@@ -94,13 +93,24 @@ let hit_leaf ray leaf =
 	 then Hit(hitpoint, distance)
 	 else Miss
 
+let hit_list ray list =
+  let closer_hit hit leaf =
+    match hit, (hit_leaf ray leaf) with
+      | Miss, Miss  ->  Miss
+      | h1  , Miss  ->  h1
+      | Miss, h2    ->  h2
+      | Hit(v1,d1), Hit(v2,d2) when d1 <= d2  ->  Hit(v1,d1)
+      | Hit(v1,d1), Hit(v2,d2)                ->  Hit(v2,d2) in
+  Array.fold_left closer_hit Miss list
+
+
 let test_ray1 () =
   let yy = (2. * rnd() - 1.) * leafrad and 
       zz = (2. * rnd() - 1.) * leafrad in
   let r = {x =  2.; y = yy; z = zz} and
       d = {x = -1.; y = 0.; z = 0.} in  
   {rr = r; rd = d}
-
+    
 (* shoot rays from a square to one randomly oriented leaf in origo *)
 let test1 n =
   let cnt = ref 1 in
@@ -126,16 +136,6 @@ let boxtop_ray dx dy dz =
       yy = frac * (dy + dy * rnd()) in
   let r = {x = xx; y = yy; z = dz + leafrad} in
   {rr = r; rd = {x = 0.; y = 0.; z = -1.}}
-
-let hit_list ray list =
-  let closer_hit hit leaf =
-    match hit, (hit_leaf ray leaf) with
-      | Miss, Miss  ->  Miss
-      | h1  , Miss  ->  h1
-      | Miss, h2    ->  h2
-      | Hit(v1,d1), Hit(v2,d2) when d1 <= d2  ->  Hit(v1,d1)
-      | Hit(v1,d1), Hit(v2,d2)                ->  Hit(v2,d2) in
-  Array.fold_left closer_hit Miss list
 
 let test_ray2 () = boxtop_ray dimx dimy dimx
 let forest1 = mk_boxforest dimx dimy dimz n_leaves 
