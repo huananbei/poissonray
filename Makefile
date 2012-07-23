@@ -2,7 +2,7 @@
 
 dSFMT-PATH = ocaml-dSFMT
 OBJDIR  = obj
-OPT = -inline 10
+OPT = -inline 10 -I +gsl bigarray.cmxa gsl.cmxa -I .
 
 all: exe
 
@@ -17,14 +17,16 @@ $(OBJDIR)/libdsfmt.a: $(dSFMT-PATH)/libdsfmt.a
 	cp $(dSFMT-PATH)/libdsfmt.a $(OBJDIR)
 $(OBJDIR)/dsfmt.cmi:  $(dSFMT-PATH)/dsfmt.cmi
 	cp $(dSFMT-PATH)/dsfmt.cmi $(OBJDIR)
-$(OBJDIR)/dsfmt.o:    $(dSFMT-PATH)/dsfmt.o
-	cp $(dSFMT-PATH)/dsfmt.o $(OBJDIR)
+$(OBJDIR)/dsfmt.a:    $(dSFMT-PATH)/dsfmt.a
+	cp $(dSFMT-PATH)/dsfmt.a $(OBJDIR)
 $(OBJDIR)/dsfmt.cmx:  $(dSFMT-PATH)/dsfmt.cmx
 	cp $(dSFMT-PATH)/dsfmt.cmx $(OBJDIR)
+$(OBJDIR)/dsfmt.cmxa:  $(dSFMT-PATH)/dsfmt.cmxa
+	cp $(dSFMT-PATH)/dsfmt.cmxa $(OBJDIR)
 
-exe: $(OBJDIR)/libdsfmt.a $(OBJDIR)/dsfmt.cmi $(OBJDIR)/dsfmt.o $(OBJDIR)/dsfmt.cmx ray.ml
+exe: $(OBJDIR)/libdsfmt.a $(OBJDIR)/dsfmt.cmi $(OBJDIR)/dsfmt.a $(OBJDIR)/dsfmt.cmx $(OBJDIR)/dsfmt.cmxa ray.ml
 	cp ray.ml $(OBJDIR) ; cd $(OBJDIR) ; \
-ocamlopt -o $@ $(OPT) libdsfmt.a dsfmt.cmx ray.ml ; \
+ocamlopt -o $@ $(OPT) dsfmt.cmxa ray.ml ; \
 mv $@ ..
 
 # other possible optimization options:

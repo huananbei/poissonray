@@ -6,8 +6,16 @@ let lambert_up () = let
 *)
 
 open Printf;;
-let () = Dsfmt.init_int 15
+
+let dsfmt_seed = 7
+let gsl_seed   = 7n (* n for nativeint *)
+
+let () = Dsfmt.init_int dsfmt_seed
 let rnd = Dsfmt.genrand
+
+let gslrng = Gsl_rng.make Gsl_rng.MT19937 ;;
+Gsl_rng.set gslrng gsl_seed
+let poisson = Gsl_randist.poisson gslrng
 
 let lai        = 3.
 let leafrad    = 0.100 (* 0.05 leaf radius 50 mm, diameter 100 mm *)
@@ -19,34 +27,6 @@ let ground_area = dimx *. dimy
 let pi = acos (-1.0)
 let leaf_area = pi *. leafrad *. leafrad
 let expected_n_leaves = ground_area *. lai /. leaf_area
-
-(* http://www.johndcook.com/blog/2010/08/16/how-to-compute-log-factorial/ *)
-(* Not good for x < 256 *)
-let logfact x =
-  (x -. 0.5) *. log(x) -. x +. 0.5 *. log(2. *. pi) +. 1. /. (12. *. x)
-
-(* http://www.johndcook.com/blog/2010/06/14/generating-poisson-random-values/ *)
-let poisson lambda =
-  let c = 0.767 -. 3.36 /. lambda
-  and beta = pi /. sqrt(3. *. lambda) in
-  let alpha = beta *. lambda
-  and k = log(c) -. lambda -. log(beta) in
-  let u = ref 0. and x = ref 0. and n = ref 0 and v = ref 0. and y = ref 0.
-  and lhs = ref 1. and rhs = ref 0. in
-    while lhs > rhs do
-      n := -1;
-      while !n < 0 do
-	u := rnd();
-	while !u = 0. do u := rnd() done;
-	x := (alpha -. log((1. -. !u) /. !u)) /. beta;
-	n := int_of_float (floor (!x +. 0.5))
-      done;
-      v := rnd();
-      y := alpha -. beta *. !x;
-      lhs := !y +. log(!v /. (1. +. exp(!y))**2.);
-      rhs := k +. (float !n) *. log(lambda) -. logfact(float !n);
-    done;
-    !n
 
 let n_leaves = poisson expected_n_leaves
 
