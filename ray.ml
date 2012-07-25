@@ -1,13 +1,11 @@
-(*
-let lambert_up () = let
-    theta = asin (sqrt (rnd())) and
-    phi   = 2.0 *. pi *. (rnd()) in
-    {x = sin theta *. cos phi; y = sin theta *. sin phi; z = cos theta}
-*)
+open Printf
+open Batteries_uni
 
-open Printf;;
-
-let seed = 7
+let seed       = 7
+let lai        = 1.
+let leafrad    = 0.050 (* 0.05 leaf radius 50 mm, diameter 100 mm *)
+let xdim, ydim, zdim = 3., 3., 1.
+let nx, ny, nz = 6, 6, 2 (* number of boxes in each axis *)
 
 let () = Dsfmt.init_int seed
 let rnd = Dsfmt.genrand
@@ -15,26 +13,6 @@ let gsl_seed = Nativeint.of_int seed
 let gslrng = Gsl_rng.make Gsl_rng.MT19937
 let () = Gsl_rng.set gslrng gsl_seed
 let poisson lambda = Gsl_randist.poisson gslrng lambda
-
-let lai        = 1.
-let leafrad    = 0.050 (* 0.05 leaf radius 50 mm, diameter 100 mm *)
-let dimx, dimy, dimz = 3., 3., 1.
-
-let volume = dimx *. dimy *. dimz
-let ground_area = dimx *. dimy
-let pi = acos (-1.0)
-let area_of_leaf = pi *. leafrad *. leafrad
-let expected_n_leaves = ground_area *. lai /. area_of_leaf
-
-let n_leaves = poisson expected_n_leaves
-let () =  printf "n_leaves: %n\n" n_leaves
-
-type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
-type leaf_t = {lr:vec_t; ld:vec_t}        (* lr: location, ld: direction *)
-type ray_t  = {rr:vec_t; rd:vec_t}        (* rr: location, rd: direction *)
-
-let vec0 = {x = 0.; y = 0.; z = 0.}
-let leaf0 = {lr = vec0; ld = vec0}
 
 let ( + ) = Pervasives.( +. )
 let ( - ) = Pervasives.( -. )
@@ -44,54 +22,72 @@ let ( ~- ) = Pervasives.( ~-. ) (* Unary negation *)
 let ( +. ) = Pervasives.( + )
 let ( -. ) = Pervasives.( - )
 
+let x_start, x_end = leafrad, xdim - leafrad
+let y_start, y_end = leafrad, ydim - leafrad
+let z_start, z_end = leafrad, zdim - leafrad
+let leafbox = x_start, x_end,  y_start, y_end, z_start, z_end  
+let volume = (x_end - x_start) * (y_end - y_start) * (z_end - z_start)
+let ground_area = (x_end - x_start) * (y_end - y_start)
+let pi = acos (-1.0)
+let area_of_leaf = pi * leafrad**2.
+let expected_n_leaves = ground_area * lai / area_of_leaf
+
+let n_leaves = poisson expected_n_leaves
+let () =  printf "n_leaves: %n\n" n_leaves
+
+type vec_t  = {x:float; y:float; z:float} (* 3d vector *)
+type leaf_t = {lpos:vec_t; ldir:vec_t}    (* lpos: position, ldir: direction *)
+type ray_t  = {rpos:vec_t; rdir:vec_t}    (* rpos: location, rdir: direction *)
+type leaflist_t = leaf_t DynArray.t
+
+let vec0  = {x = 0.; y = 0.; z = 0.}
+let leaf0 = {lpos = vec0; ldir = vec0}
+
 (* vector operations *)
-let ( *| ) k a = {x =   k * a.x; y =   k * a.y; z =   k * a.z}
-let ( +| ) a b = {x = a.x + b.x; y = a.y + b.y; z = a.z + b.z}
-let ( -| ) a b = {x = a.x - b.x; y = a.y - b.y; z = a.z - b.z}
+let ( *^ ) k a = {x =   k * a.x; y =   k * a.y; z =   k * a.z}
+let ( +^ ) a b = {x = a.x + b.x; y = a.y + b.y; z = a.z + b.z}
+let ( -^ ) a b = {x = a.x - b.x; y = a.y - b.y; z = a.z - b.z}
 let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
-(* spherically orientated vec with z >= 0 *)
+(* spherically oriented vec with z >= 0 *)
 let sph_up () = 
   let theta = acos(rnd()) and 
       phi = 2. * pi * (rnd()) in 
   {x = sin theta * cos phi; y = sin theta * sin phi; z = cos theta}
 
-(* spherically orientated vec with z <= 0 *)
-let sph_down () = 
-  let theta = acos(rnd()) and 
-      phi = 2. * pi * (rnd()) in 
-  {x = sin theta * cos phi; y = sin theta * sin phi; z = - cos theta}
+(* spherically oriented vec with z <= 0 *)
+let sph_down () =
+  let v = sph_up() in {v with z = -v.z}
 
-(* spherically orientated leaf in origo *)
+(* spherically oriented leaf in origo *)
 let r_leaf0 () =
-  let r = {x = 0.; y = 0.; z = 0.} and 
+  let p = {x = 0.; y = 0.; z = 0.} and 
       d = sph_up() in  
-  {lr = r; ld = d}
+  {lpos = p; ldir = d}
 
-(* spherically orientated leaf in a box *)
-let r_leaf dx dy dz =
-  let r = {x = dx * rnd(); y = dy * rnd(); z = dz * rnd()} in
-  {lr = r; ld = sph_up()}
+(* spherically oriented leaf in a box *)
+let r_leaf box =
+  let x1, x2, y1, y2, z1, z2 = box in
+  let p = {x = x1 + rnd()*(x2-x1); y = y1 + rnd()*(y2-y1); z = z1 + rnd()*(z2-z1)} in
+  {lpos = p; ldir = sph_up()}
 
+(* for points (vecs) a and b, is |a-b| < r *)
 let close_p a b r =
-  let dx = a.x - b.x and
-      dy = a.y - b.y and
-      dz = a.z - b.z in
+  let dx = a.x - b.x and dy = a.y - b.y and dz = a.z - b.z in
   dx*dx + dy*dy + dz*dz < r*r
 
 type hit_t = Miss | Hit of vec_t * float
 
 let hit_leaf ray leaf =
-  let denom = dot ray.rd leaf.ld in 
+  let denom = dot ray.rdir leaf.ldir in 
   if denom = 0. then Miss
-  else
-    let numer = dot (leaf.lr -| ray.rr) leaf.ld in
-    let distance = numer / denom in
-    if distance <= 0. then Miss
-    else let hitpoint = ray.rr +| (distance *| ray.rd) in 
-	 if close_p hitpoint leaf.lr leafrad
-	 then Hit(hitpoint, distance)
-	 else Miss
+  else let numer = dot (leaf.lpos -^ ray.rpos) leaf.ldir in
+       let distance = numer / denom in
+       if distance <= 0. then Miss
+       else let hitpoint = ray.rpos +^ (distance *^ ray.rdir) in 
+	    if close_p hitpoint leaf.lpos leafrad
+	    then Hit(hitpoint, distance)
+	    else Miss
 
 let hit_list ray list =
   let closer_hit hit leaf =
@@ -99,46 +95,43 @@ let hit_list ray list =
       | Miss, Miss  ->  Miss
       | h1  , Miss  ->  h1
       | Miss, h2    ->  h2
-      | Hit(v1,d1), Hit(v2,d2) when d1 <= d2  ->  Hit(v1,d1)
-      | Hit(v1,d1), Hit(v2,d2)                ->  Hit(v2,d2) in
+      | Hit(pos1,dist1), Hit(pos2,dist2) when dist1 <= dist2  ->  Hit(pos1,dist1)
+      | Hit(pos1,dist1), Hit(pos2,dist2)                      ->  Hit(pos2,dist2) in
   Array.fold_left closer_hit Miss list
-
 
 let test_ray1 () =
   let yy = (2. * rnd() - 1.) * leafrad and 
       zz = (2. * rnd() - 1.) * leafrad in
   let r = {x =  2.; y = yy; z = zz} and
       d = {x = -1.; y = 0.; z = 0.} in  
-  {rr = r; rd = d}
+  {rpos = r; rdir = d}
     
 (* shoot rays from a square to one randomly oriented leaf in origo *)
 let test1 n =
   let cnt = ref 1 in
     for i = 1 to n do
       cnt := !cnt +.
-	if (hit_leaf (test_ray1()) (r_leaf0()) <> Miss)
-	then 1
-	else 0
+	if hit_leaf (test_ray1()) (r_leaf0()) <> Miss then 1 else 0
     done ;
     printf "res:  %15.10f\n" (float !cnt /. float n);
     printf "pi/8: %15.10f\n" (pi /. 8.)
 
-let mk_boxforest dx dy dz n =
+let make_boxforest leafbox n =
   let forest = Array.make n leaf0 in
   for i = 0 to n -. 1 do
-    Array.set forest i (r_leaf dx dy dz)
+    forest.(i) <- r_leaf leafbox
   done ;
   forest
 
-let boxtop_ray dx dy dz =
+let boxtop_ray zdim ydim zdim =
   let frac = 1./3. in
-  let xx = frac * (dx + dx * rnd()) and
-      yy = frac * (dy + dy * rnd()) in
-  let r = {x = xx; y = yy; z = dz + leafrad} in
-  {rr = r; rd = {x = 0.; y = 0.; z = -1.}}
+  let xx = frac * (xdim + xdim*rnd()) and
+      yy = frac * (ydim + ydim*rnd()) in
+  let r = {x = xx; y = yy; z = zdim} in
+  {rpos = r; rdir = {x = 0.; y = 0.; z = -1.}}
 
-let test_ray2 () = boxtop_ray dimx dimy dimx
-let forest1 = mk_boxforest dimx dimy dimz n_leaves 
+let test_ray2 () = boxtop_ray xdim ydim zdim
+let forest1 = make_boxforest leafbox n_leaves 
 
 (* shoot rays from top down to boxforest *)
 let test2 n =
@@ -152,14 +145,12 @@ let test2 n =
     printf "res:           %15.10f\n" (float !cnt /. float n);
     printf "1 - exp(-1/2): %15.10f\n" (1. - exp (-0.5))
 
-let () = printf "len: %n\n" (Array.length forest1) ;;
-let () = test2 10000 ;;
+let () = test2 100
 
-(*
-let r1 = {rr = {x = 0.; y = 0.; z = 10.}; rd = {x = 0.; y = 0.; z = -1.}} ;;
-let l1 = {lr = {x = 0.; y = 0.; z = 0.}; ld = {x = 0.; y = 0.; z = 1.}} ;;
-let f1 = Array.make 1 l1 ;;
-hit_list r1 f1 ;;
+let make_boxgrid nx ny nz =
+  let make_leaflist x :leaflist_t = DynArray.create () in
+  let make_z_array x = Array.init nz make_leaflist in
+  let make_y_matrix x = Array.init ny make_z_array in
+  Array.init nx make_y_matrix
 
-let () = test1 100000 ;;
-*)
+let boxgrid = make_boxgrid nx ny nz ;;
