@@ -2,7 +2,7 @@
 
 dSFMT-PATH = ocaml-dSFMT
 OBJDIR  = obj
-OPT = -linkall -nodynlink -inline 100 -I +gsl bigarray.cmxa gsl.cmxa -I .
+OPT = -linkall -nodynlink -inline 100 -I +gsl gsl.cmxa -I .
 
 # other possible optimization options:
 # ocamlopt -linkall -nodynlink -unsafe -noassert
@@ -30,10 +30,8 @@ $(OBJDIR)/dsfmt.cmxa:  $(dSFMT-PATH)/dsfmt.cmxa
 
 exe: $(OBJDIR)/libdsfmt.a $(OBJDIR)/dsfmt.cmi $(OBJDIR)/dsfmt.a $(OBJDIR)/dsfmt.cmx $(OBJDIR)/dsfmt.cmxa ray.ml
 	cp ray.ml $(OBJDIR) ; cd $(OBJDIR) ; \
-ocamlopt -o $@ $(OPT) dsfmt.cmxa ray.ml ; \
-mv $@ ..
+ocamlfind ocamlopt -package batteries -linkpkg  -o $@ $(OPT) dsfmt.cmxa ray.ml ; mv $@ ..
 
-# ocamlfind ocamlc -package batteries -linkpkg ...
 # https://github.com/ocaml-batteries-team/batteries-included/wiki/Getting-started
 
 clean:
